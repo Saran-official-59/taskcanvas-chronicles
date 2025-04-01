@@ -1,6 +1,15 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  updateProfile
+} from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 // Define types for user and auth context
 type User = {
@@ -20,77 +29,73 @@ type AuthContextType = {
 // Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data (this would be replaced by actual API calls)
-const MOCK_USERS = [
-  {
-    id: '1',
-    name: 'Demo User',
-    email: 'demo@example.com',
-    password: 'password123'
-  }
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  // Check for existing session on mount
+  // Listen for auth state changes
   useEffect(() => {
-    const storedUser = localStorage.getItem('taskUser');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      } catch (e) {
-        localStorage.removeItem('taskUser');
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setLoading(true);
+      if (firebaseUser) {
+        const userObj: User = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || 'User',
+          email: firebaseUser.email || ''
+        };
+        setUser(userObj);
+      } else {
+        setUser(null);
       }
-    }
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
   }, []);
 
-  // Login function - in a real app, this would make an API call
+  // Login function
   const login = async (email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const foundUser = MOCK_USERS.find(u => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('taskUser', JSON.stringify(userWithoutPassword));
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       toast.success('Logged in successfully');
-    } else {
-      toast.error('Invalid email or password');
-      throw new Error('Invalid email or password');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      toast.error(errorMessage);
+      throw error;
     }
   };
 
-  // Signup function - in a real app, this would make an API call
+  // Signup function
   const signup = async (name: string, email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // In a real app, we would create a new user in the database
-    const newUser = {
-      id: String(MOCK_USERS.length + 1),
-      name,
-      email
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('taskUser', JSON.stringify(newUser));
-    toast.success('Account created successfully');
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update profile with name
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: name });
+      }
+      
+      toast.success('Account created successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Signup failed';
+      toast.error(errorMessage);
+      throw error;
+    }
   };
 
   // Logout function
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('taskUser');
-    toast.success('Logged out successfully');
+    signOut(auth).then(() => {
+      toast.success('Logged out successfully');
+    }).catch((error) => {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+    });
   };
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

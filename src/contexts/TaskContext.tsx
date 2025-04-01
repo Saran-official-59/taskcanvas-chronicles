@@ -2,6 +2,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from './AuthContext';
+import { fetchTasks, createTask, updateTaskAPI, deleteTaskAPI, fetchBoard, updateBoard } from '../services/api';
 
 // Define task types
 export type TaskLabel = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
@@ -28,167 +30,213 @@ export type Board = {
 
 type TaskContextType = {
   board: Board;
-  addTask: (columnId: string, title: string, description: string, labels: TaskLabel[]) => void;
-  updateTask: (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => void;
-  deleteTask: (taskId: string) => void;
-  moveTask: (taskId: string, sourceColumnId: string, destinationColumnId: string, newIndex: number) => void;
+  loading: boolean;
+  addTask: (columnId: string, title: string, description: string, labels: TaskLabel[]) => Promise<void>;
+  updateTask: (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
+  moveTask: (taskId: string, sourceColumnId: string, destinationColumnId: string, newIndex: number) => Promise<void>;
 };
 
-// Create initial mock data
-const initialColumns: Column[] = [
-  { id: 'column-1', title: 'To Do', taskIds: ['task-1', 'task-2'] },
-  { id: 'column-2', title: 'In Progress', taskIds: ['task-3'] },
-  { id: 'column-3', title: 'Done', taskIds: ['task-4'] },
-];
-
-const initialTasks: Record<string, Task> = {
-  'task-1': {
-    id: 'task-1',
-    title: 'Create project plan',
-    description: 'Define project scope, timeline, and resources',
-    labels: ['blue'],
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    columnId: 'column-1',
-  },
-  'task-2': {
-    id: 'task-2',
-    title: 'Research competitors',
-    description: 'Analyze competitor features and pricing',
-    labels: ['green', 'yellow'],
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    columnId: 'column-1',
-  },
-  'task-3': {
-    id: 'task-3',
-    title: 'Design UI mockups',
-    description: 'Create wireframes and design mockups for key screens',
-    labels: ['purple'],
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    columnId: 'column-2',
-  },
-  'task-4': {
-    id: 'task-4',
-    title: 'Set up development environment',
-    description: 'Install and configure necessary tools and dependencies',
-    labels: ['orange', 'red'],
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    columnId: 'column-3',
-  },
-};
-
+// Create initial empty board
 const initialBoard: Board = {
-  columns: initialColumns,
-  tasks: initialTasks,
+  columns: [
+    { id: 'column-1', title: 'To Do', taskIds: [] },
+    { id: 'column-2', title: 'In Progress', taskIds: [] },
+    { id: 'column-3', title: 'Done', taskIds: [] },
+  ],
+  tasks: {},
 };
 
 // Create the task context
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [board, setBoard] = useState<Board>(() => {
-    // Try to load from localStorage
-    const savedBoard = localStorage.getItem('taskBoard');
-    return savedBoard ? JSON.parse(savedBoard) : initialBoard;
-  });
+  const [board, setBoard] = useState<Board>(initialBoard);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  // Save to localStorage whenever board changes
+  // Load tasks and board structure from API when user changes
   useEffect(() => {
-    localStorage.setItem('taskBoard', JSON.stringify(board));
-  }, [board]);
+    const loadData = async () => {
+      if (!user) {
+        setBoard(initialBoard);
+        setLoading(false);
+        return;
+      }
 
-  // Add a new task
-  const addTask = (columnId: string, title: string, description: string, labels: TaskLabel[]) => {
-    const newTaskId = `task-${uuidv4()}`;
-    const newTask: Task = {
-      id: newTaskId,
-      title,
-      description,
-      labels,
-      createdAt: new Date().toISOString(),
-      columnId,
+      setLoading(true);
+      try {
+        // Load board structure
+        const boardData = await fetchBoard(user.id);
+        
+        // Load tasks
+        const tasksData = await fetchTasks(user.id);
+        
+        // Convert tasks array to record object
+        const tasksRecord: Record<string, Task> = {};
+        tasksData.forEach((task: any) => {
+          tasksRecord[task._id] = {
+            id: task._id,
+            title: task.title,
+            description: task.description,
+            labels: task.labels,
+            createdAt: task.createdAt,
+            columnId: task.columnId
+          };
+        });
+
+        setBoard({
+          columns: boardData.columns,
+          tasks: tasksRecord
+        });
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Failed to load your tasks');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setBoard(prev => {
-      // Create updated column
-      const updatedColumns = prev.columns.map(column => {
-        if (column.id === columnId) {
-          return {
-            ...column,
-            taskIds: [...column.taskIds, newTaskId],
-          };
-        }
-        return column;
+    loadData();
+  }, [user]);
+
+  // Add a new task
+  const addTask = async (columnId: string, title: string, description: string, labels: TaskLabel[]) => {
+    if (!user) {
+      toast.error('You must be logged in to add tasks');
+      return;
+    }
+
+    try {
+      const newTask = await createTask(user.id, title, description, labels, columnId);
+      
+      setBoard(prev => {
+        // Create updated column
+        const updatedColumns = prev.columns.map(column => {
+          if (column.id === columnId) {
+            return {
+              ...column,
+              taskIds: [...column.taskIds, newTask._id],
+            };
+          }
+          return column;
+        });
+
+        // Create updated tasks
+        const updatedTasks = {
+          ...prev.tasks,
+          [newTask._id]: {
+            id: newTask._id,
+            title: newTask.title,
+            description: newTask.description,
+            labels: newTask.labels,
+            createdAt: newTask.createdAt,
+            columnId: newTask.columnId,
+          },
+        };
+
+        // Update board structure in the backend
+        updateBoard(user.id, { columns: updatedColumns });
+
+        return {
+          columns: updatedColumns,
+          tasks: updatedTasks,
+        };
       });
 
-      // Create updated tasks
-      const updatedTasks = {
-        ...prev.tasks,
-        [newTaskId]: newTask,
-      };
-
-      return {
-        columns: updatedColumns,
-        tasks: updatedTasks,
-      };
-    });
-
-    toast.success('Task added successfully');
+      toast.success('Task added successfully');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast.error('Failed to add task');
+    }
   };
 
   // Update a task
-  const updateTask = (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => {
-    setBoard(prev => {
-      const task = prev.tasks[taskId];
-      if (!task) return prev;
+  const updateTask = async (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => {
+    if (!user) {
+      toast.error('You must be logged in to update tasks');
+      return;
+    }
 
-      const updatedTask = {
-        ...task,
-        ...updates,
-      };
+    try {
+      await updateTaskAPI(taskId, updates);
 
-      return {
-        ...prev,
-        tasks: {
-          ...prev.tasks,
-          [taskId]: updatedTask,
-        },
-      };
-    });
+      setBoard(prev => {
+        const task = prev.tasks[taskId];
+        if (!task) return prev;
 
-    toast.success('Task updated successfully');
+        const updatedTask = {
+          ...task,
+          ...updates,
+        };
+
+        return {
+          ...prev,
+          tasks: {
+            ...prev.tasks,
+            [taskId]: updatedTask,
+          },
+        };
+      });
+
+      toast.success('Task updated successfully');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+    }
   };
 
   // Delete a task
-  const deleteTask = (taskId: string) => {
-    setBoard(prev => {
-      const task = prev.tasks[taskId];
-      if (!task) return prev;
+  const deleteTask = async (taskId: string) => {
+    if (!user) {
+      toast.error('You must be logged in to delete tasks');
+      return;
+    }
 
-      // Create a copy of tasks without the deleted task
-      const { [taskId]: deletedTask, ...remainingTasks } = prev.tasks;
+    try {
+      await deleteTaskAPI(taskId);
 
-      // Update column to remove taskId
-      const updatedColumns = prev.columns.map(column => {
-        if (column.taskIds.includes(taskId)) {
-          return {
-            ...column,
-            taskIds: column.taskIds.filter(id => id !== taskId),
-          };
-        }
-        return column;
+      setBoard(prev => {
+        const task = prev.tasks[taskId];
+        if (!task) return prev;
+
+        // Create a copy of tasks without the deleted task
+        const { [taskId]: deletedTask, ...remainingTasks } = prev.tasks;
+
+        // Update column to remove taskId
+        const updatedColumns = prev.columns.map(column => {
+          if (column.taskIds.includes(taskId)) {
+            return {
+              ...column,
+              taskIds: column.taskIds.filter(id => id !== taskId),
+            };
+          }
+          return column;
+        });
+
+        // Update board structure in the backend
+        updateBoard(user.id, { columns: updatedColumns });
+
+        return {
+          columns: updatedColumns,
+          tasks: remainingTasks,
+        };
       });
 
-      return {
-        columns: updatedColumns,
-        tasks: remainingTasks,
-      };
-    });
-
-    toast.success('Task deleted successfully');
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    }
   };
 
   // Move a task between columns or reorder within a column
-  const moveTask = (taskId: string, sourceColumnId: string, destinationColumnId: string, newIndex: number) => {
+  const moveTask = async (taskId: string, sourceColumnId: string, destinationColumnId: string, newIndex: number) => {
+    if (!user) {
+      toast.error('You must be logged in to move tasks');
+      return;
+    }
+
     setBoard(prev => {
       // Find the source and destination columns
       const sourceColumn = prev.columns.find(col => col.id === sourceColumnId);
@@ -229,6 +277,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       };
 
+      // Update the task in the backend
+      updateTaskAPI(taskId, { columnId: destinationColumnId });
+      
+      // Update board structure in the backend
+      updateBoard(user.id, { columns: finalColumns });
+
       return {
         columns: finalColumns,
         tasks: updatedTasks,
@@ -237,7 +291,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <TaskContext.Provider value={{ board, addTask, updateTask, deleteTask, moveTask }}>
+    <TaskContext.Provider value={{ board, loading, addTask, updateTask, deleteTask, moveTask }}>
       {children}
     </TaskContext.Provider>
   );

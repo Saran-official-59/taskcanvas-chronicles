@@ -8,9 +8,10 @@ import TaskForm from '../components/TaskForm';
 import TaskDeleteDialog from '../components/TaskDeleteDialog';
 import Navbar from '../components/Navbar';
 import { TaskLabel } from '../contexts/TaskContext';
+import { Loader2 } from 'lucide-react';
 
 const Board = () => {
-  const { board, addTask, updateTask, deleteTask, moveTask } = useTask();
+  const { board, loading, addTask, updateTask, deleteTask, moveTask } = useTask();
   
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -42,11 +43,11 @@ const Board = () => {
   };
 
   // Handle task submission (add or edit)
-  const handleTaskSubmit = (title: string, description: string, labels: TaskLabel[]) => {
+  const handleTaskSubmit = async (title: string, description: string, labels: TaskLabel[]) => {
     if (isEditing && currentTaskId) {
-      updateTask(currentTaskId, { title, description, labels });
+      await updateTask(currentTaskId, { title, description, labels });
     } else if (currentColumnId) {
-      addTask(currentColumnId, title, description, labels);
+      await addTask(currentColumnId, title, description, labels);
     }
     
     setIsTaskFormOpen(false);
@@ -55,9 +56,9 @@ const Board = () => {
   };
 
   // Handle task deletion confirmation
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (currentTaskId) {
-      deleteTask(currentTaskId);
+      await deleteTask(currentTaskId);
     }
     
     setIsDeleteDialogOpen(false);
@@ -65,9 +66,23 @@ const Board = () => {
   };
 
   // Handle task drag and drop
-  const handleTaskDrop = (taskId: string, sourceColumnId: string, destinationColumnId: string, index: number) => {
-    moveTask(taskId, sourceColumnId, destinationColumnId, index);
+  const handleTaskDrop = async (taskId: string, sourceColumnId: string, destinationColumnId: string, index: number) => {
+    await moveTask(taskId, sourceColumnId, destinationColumnId, index);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex-center p-4">
+          <div className="flex flex-col items-center">
+            <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
+            <p className="text-lg text-gray-600">Loading your tasks...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -81,7 +96,7 @@ const Board = () => {
         <DndProvider backend={HTML5Backend}>
           <div className="flex gap-4 min-h-[calc(100vh-10rem)]">
             {board.columns.map((column) => {
-              const columnTasks = column.taskIds.map((taskId) => board.tasks[taskId]);
+              const columnTasks = column.taskIds.map((taskId) => board.tasks[taskId]).filter(Boolean);
               
               return (
                 <TaskColumn
