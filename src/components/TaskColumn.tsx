@@ -63,13 +63,11 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
         drop(node);
         dropRef.current = node;
       }}
-      className={`flex-1 min-w-[280px] max-w-[280px] bg-gray-50 rounded-md p-3 ${
-        isOver ? 'bg-blue-50' : ''
-      }`}
+      className={`task-container ${isOver ? 'bg-blue-50' : ''}`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-sm text-gray-700">{column.title}</h2>
-        <span className="text-xs px-2 py-0.5 bg-gray-200 rounded-full">
+      <div className="flex-between mb-3">
+        <h2 className="text-subtitle-sm text-gray-700">{column.title}</h2>
+        <span className="badge-gray">
           {tasks.length}
         </span>
       </div>
@@ -88,7 +86,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
       
       <button
         onClick={() => onAddTask(column.id)}
-        className="mt-2 flex items-center justify-center w-full py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md"
+        className="mt-2 flex-center w-full py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-md"
       >
         <Plus className="h-4 w-4 mr-1" />
         Add Task

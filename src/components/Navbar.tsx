@@ -14,21 +14,21 @@ const Navbar: React.FC<NavbarProps> = ({ onNewTask }) => {
   const navigate = useNavigate();
 
   return (
-    <nav className="w-full h-16 bg-white border-b border-gray-200 px-4 flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-xl font-bold text-blue-600">TaskCanvas</h1>
+    <nav className="w-full h-16 bg-white border-b border-gray-200 px-4 flex-between">
+      <div className="flex-start space-x-2">
+        <h1 className="text-title text-blue-600">TaskCanvas</h1>
       </div>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex-end space-x-4">
         {user ? (
           <>
             {onNewTask && (
-              <Button onClick={onNewTask} size="sm" className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={onNewTask} size="sm" className="primary-button">
                 <Plus className="h-4 w-4 mr-1" />
                 New Task
               </Button>
             )}
-            <div className="flex items-center bg-blue-50 rounded-full px-3 py-1">
+            <div className="user-avatar">
               <UserIcon className="h-4 w-4 text-blue-600 mr-2" />
               <span className="text-sm font-medium">{user.name}</span>
             </div>
@@ -39,7 +39,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNewTask }) => {
         ) : (
           <>
             <Button variant="ghost" onClick={() => navigate('/login')}>Log in</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/signup')}>Sign up</Button>
+            <Button className="primary-button" onClick={() => navigate('/signup')}>Sign up</Button>
           </>
         )}
       </div>

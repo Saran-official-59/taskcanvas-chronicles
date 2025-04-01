@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -97,5 +98,99 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Custom utility classes for cleaner component markup */
+@layer components {
+  /* Layout utilities */
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+  
+  .flex-between {
+    @apply flex items-center justify-between;
+  }
+  
+  .flex-start {
+    @apply flex items-center justify-start;
+  }
+  
+  .flex-end {
+    @apply flex items-center justify-end;
+  }
+  
+  .flex-col-center {
+    @apply flex flex-col items-center justify-center;
+  }
+  
+  /* Button styles */
+  .primary-button {
+    @apply bg-blue-600 hover:bg-blue-700 text-white;
+  }
+  
+  .secondary-button {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-800;
+  }
+  
+  .danger-button {
+    @apply bg-red-600 hover:bg-red-700 text-white;
+  }
+  
+  /* Card styles */
+  .card-container {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm p-4;
+  }
+  
+  .task-container {
+    @apply flex-1 min-w-[280px] max-w-[280px] bg-gray-50 rounded-md p-3;
+  }
+  
+  /* Form elements */
+  .form-group {
+    @apply space-y-1 mb-4;
+  }
+  
+  /* Text styles */
+  .text-title {
+    @apply text-xl font-bold text-gray-900;
+  }
+  
+  .text-subtitle {
+    @apply text-lg font-semibold text-gray-800;
+  }
+  
+  .text-body {
+    @apply text-sm text-gray-600;
+  }
+  
+  .text-small {
+    @apply text-xs text-gray-500;
+  }
+  
+  /* Status indicators */
+  .badge {
+    @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-blue {
+    @apply badge bg-blue-100 text-blue-800;
+  }
+  
+  .badge-green {
+    @apply badge bg-green-100 text-green-800;
+  }
+  
+  .badge-red {
+    @apply badge bg-red-100 text-red-800;
+  }
+  
+  .badge-gray {
+    @apply badge bg-gray-200 text-gray-800;
+  }
+  
+  /* User profile elements */
+  .user-avatar {
+    @apply flex items-center bg-blue-50 rounded-full px-3 py-1;
   }
 }

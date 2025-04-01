@@ -51,11 +51,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) => {
     >
       <CardContent className="p-3">
         {renderLabels()}
-        <h3 className="font-medium text-sm mb-1">{task.title}</h3>
-        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{task.description}</p>
+        <h3 className="text-subtitle-sm mb-1">{task.title}</h3>
+        <p className="text-small line-clamp-2 mb-2">{task.description}</p>
         
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-          <span className="text-xs text-gray-400">{formattedDate}</span>
+        <div className="flex-between mt-2 pt-2 border-t border-gray-100">
+          <span className="text-small text-gray-400">{formattedDate}</span>
           
           <div className="flex space-x-1">
             <button
@@ -63,7 +63,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) => {
                 e.stopPropagation();
                 onEdit(task.id);
               }}
-              className="p-1 hover:bg-gray-100 rounded-sm"
+              className="action-button"
             >
               <Edit className="h-3.5 w-3.5 text-gray-500" />
             </button>
@@ -72,7 +72,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) => {
                 e.stopPropagation();
                 onDelete(task.id);
               }}
-              className="p-1 hover:bg-gray-100 rounded-sm"
+              className="action-button"
             >
               <Trash2 className="h-3.5 w-3.5 text-gray-500" />
             </button>

@@ -30,7 +30,7 @@ const TaskDeleteDialog: React.FC<TaskDeleteDialogProps> = ({ open, onClose, onCo
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-red-600 hover:bg-red-700">
+          <AlertDialogAction onClick={onConfirm} className="danger-button">
             Delete
           </AlertDialogAction>
         </AlertDialogFooter>
