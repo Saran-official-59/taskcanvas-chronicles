@@ -1,15 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
-import { 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User as FirebaseUser,
-  updateProfile
-} from 'firebase/auth';
-import { auth } from '../config/firebase';
+import axios from 'axios';
 
 // Define types for user and auth context
 type User = {
@@ -29,34 +21,61 @@ type AuthContextType = {
 // Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Create AuthProvider
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Listen for auth state changes
+  // Check for existing session on load
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const checkAuthStatus = async () => {
       setLoading(true);
-      if (firebaseUser) {
-        const userObj: User = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || 'User',
-          email: firebaseUser.email || ''
-        };
-        setUser(userObj);
-      } else {
+      try {
+        const token = localStorage.getItem('authToken');
+        
+        if (token) {
+          const response = await axios.get('http://localhost:5000/api/auth/user', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          setUser({
+            id: response.data.id,
+            name: response.data.name,
+            email: response.data.email
+          });
+        }
+      } catch (error) {
+        console.error('Auth status check failed:', error);
+        localStorage.removeItem('authToken');
         setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
     
-    return () => unsubscribe();
+    checkAuthStatus();
   }, []);
 
   // Login function
   const login = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const response = await axios.post('http://localhost:5000/api/auth/login', {
+        email,
+        password
+      });
+      
+      const { token, user: userData } = response.data;
+      
+      localStorage.setItem('authToken', token);
+      
+      setUser({
+        id: userData._id,
+        name: userData.name,
+        email: userData.email
+      });
+      
       toast.success('Logged in successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
@@ -68,12 +87,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Signup function
   const signup = async (name: string, email: string, password: string) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const response = await axios.post('http://localhost:5000/api/auth/signup', {
+        name,
+        email,
+        password
+      });
       
-      // Update profile with name
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: name });
-      }
+      const { token, user: userData } = response.data;
+      
+      localStorage.setItem('authToken', token);
+      
+      setUser({
+        id: userData._id,
+        name: userData.name,
+        email: userData.email
+      });
       
       toast.success('Account created successfully');
     } catch (error) {
@@ -85,12 +113,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Logout function
   const logout = () => {
-    signOut(auth).then(() => {
+    try {
+      localStorage.removeItem('authToken');
+      setUser(null);
       toast.success('Logged out successfully');
-    }).catch((error) => {
+    } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to log out');
-    });
+    }
   };
 
   return (

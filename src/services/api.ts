@@ -12,6 +12,34 @@ const api = axios.create({
   },
 });
 
+// Add request interceptor for authentication
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// API functions for authentication
+export const checkAuthStatus = async () => {
+  const response = await api.get('/auth/user');
+  return response.data;
+};
+
+export const loginUser = async (email: string, password: string) => {
+  const response = await api.post('/auth/login', { email, password });
+  return response.data;
+};
+
+export const signupUser = async (name: string, email: string, password: string) => {
+  const response = await api.post('/auth/signup', { name, email, password });
+  return response.data;
+};
+
 // API functions for tasks
 export const fetchTasks = async (userId: string) => {
   const response = await api.get(`/tasks/${userId}`);
